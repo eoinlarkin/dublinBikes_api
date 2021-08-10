@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Python Code to Pull Data
 import json
 import requests
@@ -11,25 +13,46 @@ import time
 api_key = Path("api_key/key.txt").read_text()
 api_key = api_key.replace('\n', '')
 
-# Making a request for a station
-station_query = 'https://api.jcdecaux.com/vls/v1/stations?contract=%(city)s&apiKey=%(key)s' % {'key': api_key, 'city': "dublin"}
 
-# make the api request
-r = requests.get(station_query)
+def getLiveData():
+    try:
+        # Making a request for a station
+        station_query = 'https://api.jcdecaux.com/vls/v1/stations?contract=%(city)s&apiKey=%(key)s' % {'key': api_key, 'city': "dublin"}
+        
+        # make the api request
+        r = requests.get(station_query)
+        
+        # extract as json
+        response_json = r.json()
+        
+        # Flatten the json file and store as data frame
+        df = pd.json_normalize(response_json, sep='_')
 
-# extract as json
-response_json = r.json()
+        # Add current time zone
+        df['run_datetime_local'] = pd.Timestamp.utcnow().tz_convert('Europe/Dublin')
 
-# Flatten the json file and store as data frame
-df = pd.json_normalize(response_json, sep='_')
+        # Converting the timezones
+        df['last_update_utc']=(pd.to_datetime(df['last_update'],unit='ms')) 
+        df['last_update_local'] = df['last_update_utc'].dt.tz_localize('utc').dt.tz_convert('Europe/Dublin')
 
-# Converting the timezones
-df['last_update_utc']=(pd.to_datetime(df['last_update'],unit='ms')) 
-df['last_update_local'] = df['last_update_utc'].dt.tz_localize('utc').dt.tz_convert('Europe/Dublin')
+        # Calculating the availability percentage
+        df['avail_percent'] = df['available_bikes'] / df['bike_stands']
 
-# Calculating the availability percentage
-df['avail_percent'] = df['available_bikes'] / df['bike_stands']
+    except:
+        print("Failed to download data")
+        return None
+    return df
 
-# Saving data as a csv file
-df.to_csv('bike_logging.csv', mode='a', header=False)
+while True:
+    df=getLiveData()
+
+    if df.empty:
+        print('Data frame is empty')
+    else:
+        # Saving data as a csv file
+        df.to_csv('bike_logging.csv', mode='a', header=False)
+
+    print("Sleeping for 10 minutes")
+    time.sleep(600)
+
 
