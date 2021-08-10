@@ -6,6 +6,7 @@ import requests
 from pathlib import Path
 import pandas as pd
 from datetime import datetime
+import os
 import time
 
 # Import the API Key
@@ -43,16 +44,23 @@ def getLiveData():
         return None
     return df
 
+# Downloading the API data every 10 minutes
+i=0
 while True:
     df=getLiveData()
+    df.insert(0, 'request_number', i)
 
     if df.empty:
         print('Data frame is empty')
     else:
-        # Saving data as a csv file
-        df.to_csv('bike_logging.csv', mode='a', header=False)
+        # Saving data as a csv file    
+        if os.path.exists('data/bike_logging.csv') == False:
+            df.to_csv('data/bike_logging.csv', mode='a', header=True, index=False)
+        else:
+            df.to_csv('data/bike_logging.csv', mode='a', header=False, index=False)
 
     print("Sleeping for 10 minutes")
+    i+=1
     time.sleep(600)
 
 
