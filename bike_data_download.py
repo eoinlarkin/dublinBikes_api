@@ -5,7 +5,7 @@ import json
 import requests
 from pathlib import Path
 import pandas as pd
-from datetime import datetime
+import datetime
 import os
 import time
 
@@ -14,6 +14,14 @@ import time
 api_key = Path("api_key/key.txt").read_text()
 api_key = api_key.replace('\n', '')
 
+# Function to check if time in a certain range
+# Dublin bikes are only available between 05:00 to 00:30 
+def time_in_range(start, end, x):
+    # Return true if x is in the range [start, end]
+    if start <= end:
+        return start <= x <= end
+    else:
+        return start <= x or x <= end
 
 def getLiveData():
     try:
@@ -46,18 +54,26 @@ def getLiveData():
 
 # Downloading the API data every 10 minutes
 i=0
-while True:
-    df=getLiveData()
-    df.insert(0, 'request_number', i)
+start = datetime.time(5, 0, 0)
+end = datetime.time(00, 30, 0)
 
-    if df.empty:
-        print('Data frame is empty')
-    else:
-        # Saving data as a csv file    
-        if os.path.exists('data/bike_logging.csv') == False:
-            df.to_csv('data/bike_logging.csv', mode='a', header=True, index=False)
+while True:
+
+    if time_in_range(start, end, datetime.datetime.now().time()):
+        df=getLiveData()
+        df.insert(0, 'request_number', i)
+
+        if df.empty:
+            print('Data frame is empty')
         else:
-            df.to_csv('data/bike_logging.csv', mode='a', header=False, index=False)
+            # Saving data as a csv file    
+            if os.path.exists('data/bike_logging1.csv') == False:
+                df.to_csv('data/bike_logging1.csv', mode='a', header=True, index=False)
+            else:
+                df.to_csv('data/bike_logging1.csv', mode='a', header=False, index=False)
+
+    else:
+        print("Stations are closed")
 
     print("Sleeping for 10 minutes")
     i+=1
